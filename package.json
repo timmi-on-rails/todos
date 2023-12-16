@@ -1,0 +1,18 @@
+{
+  "name": "together",
+  "version": "1.0.0",
+  "description": "TODO app",
+  "source": "src/index.html",
+  "scripts": {
+    "elm": "elm",
+    "dev": "parcel",
+    "build": "parcel build"
+  },
+  "author": "Tom Scheler",
+  "license": "MIT",
+  "devDependencies": {
+    "@parcel/transformer-elm": "^2.8.3",
+    "elm": "^0.19.1-5",
+    "parcel": "^2.8.3"
+  }
+}
