@@ -1,5 +1,6 @@
-module Persistence exposing (addTodo, getTodos)
+module Backend.WebDav exposing (Config, build)
 
+import Backend
 import Base64
 import Csv.Decode as Decode exposing (Decoder)
 import Csv.Encode as Encode
@@ -12,9 +13,23 @@ import Task
 import Todo
 
 
-readTodos : Reader.Reader String (List Todo.Todo) a -> Task.Task String a
-readTodos r =
-    getTodosHttp
+type alias Config =
+    { url : String
+    , user : String
+    , password : String
+    }
+
+
+build : Config -> Backend.Backend
+build cfg =
+    { getTodos = getTodos cfg
+    , addTodo = addTodo cfg
+    }
+
+
+readTodos : Config -> Reader.Reader String (List Todo.Todo) a -> Task.Task String a
+readTodos cfg r =
+    getTodosHttp cfg
         |> Task.map .todos
         |> Task.andThen
             (\todos ->
@@ -27,10 +42,10 @@ readTodos r =
             )
 
 
-modifyTodos : State.State String (List Todo.Todo) a -> Task.Task String a
-modifyTodos r =
+modifyTodos : Config -> State.State String (List Todo.Todo) a -> Task.Task String a
+modifyTodos cfg r =
     (Retry.retryIf Tuple.first <|
-        (getTodosHttp
+        (getTodosHttp cfg
             |> Task.andThen
                 (\x ->
                     case r |> State.run x.todos of
@@ -42,20 +57,20 @@ modifyTodos r =
                 )
             |> Task.mapError (\e -> ( False, e ))
             |> Task.andThen
-                (\x -> putTodosHttp { etag = x.etag, todos = x.todos } |> Task.map (\_ -> x.value))
+                (\x -> putTodosHttp cfg { etag = x.etag, todos = x.todos } |> Task.map (\_ -> x.value))
         )
     )
         |> Task.mapError Tuple.second
 
 
-getTodosHttp : Task.Task String { etag : String, todos : List Todo.Todo }
-getTodosHttp =
+getTodosHttp : Config -> Task.Task String { etag : String, todos : List Todo.Todo }
+getTodosHttp cfg =
     Http.task
         { url = "https://seafile.coding-tom.de/seafdav/Dokumente/Test.txt"
         , method = "GET"
         , body = Http.emptyBody
         , headers =
-            [ buildAuthorizationHeader "u" "p"
+            [ buildAuthorizationHeader cfg
             , Http.header "Cache-Control" "max-age=0,no-cache,no-store,post-check=0,pre-check=0"
             ]
         , resolver =
@@ -85,8 +100,8 @@ getTodosHttp =
         }
 
 
-putTodosHttp : { etag : String, todos : List Todo.Todo } -> Task.Task ( Bool, String ) ()
-putTodosHttp x =
+putTodosHttp : Config -> { etag : String, todos : List Todo.Todo } -> Task.Task ( Bool, String ) ()
+putTodosHttp cfg x =
     Http.task
         { url = "https://seafile.coding-tom.de/seafdav/Dokumente/Test.txt"
         , method = "PUT"
@@ -105,7 +120,7 @@ putTodosHttp x =
                         }
                 )
         , headers =
-            [ buildAuthorizationHeader "u" "p"
+            [ buildAuthorizationHeader cfg
             , Http.header "If-Match" x.etag
             ]
         , resolver =
@@ -131,17 +146,17 @@ putTodosHttp x =
         }
 
 
-getTodos : Task.Task String (List Todo.Todo)
-getTodos =
-    Reader.ask |> readTodos
+getTodos : Config -> Task.Task String (List Todo.Todo)
+getTodos cfg =
+    Reader.ask |> readTodos cfg
 
 
-addTodo : String -> Task.Task String (List Todo.Todo)
-addTodo title =
+addTodo : Config -> String -> Task.Task String (List Todo.Todo)
+addTodo cfg title =
     State.get
         |> State.andThen (\todos -> State.put <| { id = 2, title = title } :: todos)
         |> State.andThen (\_ -> State.get)
-        |> modifyTodos
+        |> modifyTodos cfg
 
 
 decoder : Decoder Todo.Todo
@@ -168,6 +183,6 @@ decode csv =
             )
 
 
-buildAuthorizationHeader : String -> String -> Http.Header
-buildAuthorizationHeader username password =
-    Http.header "Authorization" ("Basic " ++ Base64.encode (username ++ ":" ++ password))
+buildAuthorizationHeader : Config -> Http.Header
+buildAuthorizationHeader cfg =
+    Http.header "Authorization" ("Basic " ++ Base64.encode (cfg.user ++ ":" ++ cfg.password))

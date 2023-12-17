@@ -1,13 +1,14 @@
-port module Main exposing (..)
+module Main exposing (..)
 
+import Backend
+import Backend.WebDav
 import Browser
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
-import Json.Decode as D
 import Json.Encode as E
-import Persistence
 import Task
 import Todo
+import UserSettings
 
 
 
@@ -30,51 +31,25 @@ main =
 
 type alias Model =
     { todos : List Todo.Todo
-    , webDavConfig : Maybe WebDavConfig
+    , webDavConfig : Backend.WebDav.Config
     }
 
 
 init : E.Value -> ( Model, Cmd Msg )
 init flags =
-    ( let
+    let
+        config =
+            UserSettings.decode flags |> Result.withDefault { url = "", user = "", password = "" }
+
         model =
-            { todos = [], webDavConfig = Nothing }
-      in
-      case D.decodeValue decoder flags of
-        Ok cfg ->
-            { model | webDavConfig = Just cfg }
-
-        Err _ ->
-            model
-    , Persistence.getTodos |> Task.attempt UpdateTodos
-    )
+            { todos = [], webDavConfig = config }
+    in
+    ( model, backend model |> .getTodos |> Task.attempt UpdateTodos )
 
 
-type alias WebDavConfig =
-    { url : String
-    , user : String
-    , password : String
-    }
-
-
-encode : WebDavConfig -> E.Value
-encode cfg =
-    E.object
-        [ ( "url", E.string cfg.url )
-        , ( "user", E.string cfg.user )
-        , ( "password", E.string cfg.password )
-        ]
-
-
-decoder : D.Decoder WebDavConfig
-decoder =
-    D.map3 WebDavConfig
-        (D.field "url" D.string)
-        (D.field "user" D.string)
-        (D.field "password" D.string)
-
-
-port setWebDavConfig : E.Value -> Cmd msg
+backend : Model -> Backend.Backend
+backend model =
+    Backend.WebDav.build model.webDavConfig
 
 
 
@@ -90,7 +65,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddTodo ->
-            ( model, Persistence.addTodo "test" |> Task.attempt UpdateTodos )
+            ( model, (backend model |> .addTodo) "test" |> Task.attempt UpdateTodos )
 
         UpdateTodos res ->
             let
@@ -112,17 +87,6 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ button [ onClick AddTodo ]
-            [ text
-                ("add some Todo "
-                    ++ (model.webDavConfig
-                            |> Maybe.map
-                                (\cfg ->
-                                    cfg.user ++ " " ++ cfg.password ++ " " ++ cfg.url
-                                )
-                            |> Maybe.withDefault ""
-                       )
-                )
-            ]
+        [ button [ onClick AddTodo ] [ text "add some Todo " ]
         , div [] (model.todos |> List.map (\todo -> div [] [ text todo.title ]))
         ]

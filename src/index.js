@@ -20,7 +20,7 @@ async function init() {
         flags: webDavConfig
     });
 
-    app.ports.setWebDavConfig.subscribe(async function (state) {
+    app.ports.setWebDavConfigInternal.subscribe(async function (state) {
         localStorage.setItem('webdav-url', state.url);
 
         const cred = new PasswordCredential({
