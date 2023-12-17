@@ -69,7 +69,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddTodo ->
-            ( model, backend model |> Result.map (\b -> b.addTodo "test" |> Task.attempt UpdateTodos) |> Result.withDefault Cmd.none )
+            ( model
+            , backend model
+                |> Result.map
+                    (\b ->
+                        b.addTodo "test"
+                            |> Task.attempt UpdateTodos
+                    )
+                |> Result.withDefault Cmd.none
+            )
 
         UpdateTodos res ->
             let

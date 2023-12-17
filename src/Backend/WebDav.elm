@@ -85,7 +85,7 @@ modifyTodos cfg r =
 getTodosHttp : Config -> Task.Task String { etag : String, todos : List Todo.Todo }
 getTodosHttp cfg =
     Http.task
-        { url = "https://seafile.coding-tom.de/seafdav/Dokumente/Test.txt"
+        { url = cfg.url
         , method = "GET"
         , body = Http.emptyBody
         , headers =
@@ -122,7 +122,7 @@ getTodosHttp cfg =
 putTodosHttp : Config -> { etag : String, todos : List Todo.Todo } -> Task.Task ( Bool, String ) ()
 putTodosHttp cfg x =
     Http.task
-        { url = "https://seafile.coding-tom.de/seafdav/Dokumente/Test.txt"
+        { url = cfg.url
         , method = "PUT"
         , body =
             Http.stringBody "text/plain"
