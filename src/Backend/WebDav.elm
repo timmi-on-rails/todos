@@ -39,7 +39,7 @@ validate cfg =
                 |> List.filter Tuple.first
                 |> List.map Tuple.second
     in
-    if List.isEmpty errors then
+    if not <| List.isEmpty errors then
         Err (errors |> List.foldl (\s e -> s ++ e) "")
 
     else
