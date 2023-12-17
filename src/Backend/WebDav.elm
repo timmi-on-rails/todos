@@ -20,11 +20,30 @@ type alias Config =
     }
 
 
-build : Config -> Backend.Backend
+build : Config -> Result String Backend.Backend
 build cfg =
-    { getTodos = getTodos cfg
-    , addTodo = addTodo cfg
-    }
+    validate cfg
+        |> Result.map
+            (\_ ->
+                { getTodos = getTodos cfg
+                , addTodo = addTodo cfg
+                }
+            )
+
+
+validate : Config -> Result String ()
+validate cfg =
+    let
+        errors =
+            [ ( String.isEmpty cfg.user, "user is empty" ) ]
+                |> List.filter Tuple.first
+                |> List.map Tuple.second
+    in
+    if List.isEmpty errors then
+        Err (errors |> List.foldl (\s e -> s ++ e) "")
+
+    else
+        Ok ()
 
 
 readTodos : Config -> Reader.Reader String (List Todo.Todo) a -> Task.Task String a

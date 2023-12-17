@@ -44,10 +44,14 @@ init flags =
         model =
             { todos = [], webDavConfig = config }
     in
-    ( model, backend model |> .getTodos |> Task.attempt UpdateTodos )
+    ( model
+    , backend model
+        |> Result.map (.getTodos >> Task.attempt UpdateTodos)
+        |> Result.withDefault Cmd.none
+    )
 
 
-backend : Model -> Backend.Backend
+backend : Model -> Result String Backend.Backend
 backend model =
     Backend.WebDav.build model.webDavConfig
 
@@ -65,7 +69,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddTodo ->
-            ( model, (backend model |> .addTodo) "test" |> Task.attempt UpdateTodos )
+            ( model, backend model |> Result.map (\b -> b.addTodo "test" |> Task.attempt UpdateTodos) |> Result.withDefault Cmd.none )
 
         UpdateTodos res ->
             let
