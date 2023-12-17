@@ -3,7 +3,8 @@ module Main exposing (..)
 import Backend
 import Backend.WebDav
 import Browser
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, button, div, node, span, text)
+import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Json.Encode as E
 import Task
@@ -99,6 +100,17 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ button [ onClick AddTodo ] [ text "add some Todo " ]
+        [ viewNavBar
+        , button [ class "btn", class "btn-primary", onClick AddTodo ] [ text "add some Todo " ]
         , div [] (model.todos |> List.map (\todo -> div [] [ text todo.title ]))
+        ]
+
+
+viewNavBar : Html msg
+viewNavBar =
+    node "nav"
+        [ class "navbar", class "bg-body-tertiary" ]
+        [ div [ class "container-fluid" ]
+            [ span [ class "navbar-brand", class "mb-0", class "h1" ] [ text "Todos" ]
+            ]
         ]
