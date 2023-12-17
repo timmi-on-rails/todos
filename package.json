@@ -11,9 +11,11 @@
   "author": "Tom Scheler",
   "license": "MIT",
   "devDependencies": {
-    "bootstrap": "^5.3.2",
+    "@parcel/packager-raw-url": "^2.10.3",
     "@parcel/transformer-elm": "^2.8.3",
     "@parcel/transformer-sass": "^2.10.3",
+    "@parcel/transformer-webmanifest": "^2.10.3",
+    "bootstrap": "^5.3.2",
     "elm": "^0.19.1-5",
     "parcel": "^2.8.3"
   }
