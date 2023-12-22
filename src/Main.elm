@@ -3,9 +3,11 @@ module Main exposing (..)
 import Backend
 import Backend.WebDav
 import Browser
-import Html exposing (Html, button, div, input, node, span, text)
-import Html.Attributes exposing (class, placeholder, type_, value)
+import Html exposing (Html, a, button, div, h2, input, node, span, text)
+import Html.Attributes exposing (class, classList, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput)
+import Html.Keyed as Keyed
+import Html.Lazy exposing (lazy)
 import Json.Encode as E
 import Task
 import Todo
@@ -32,6 +34,7 @@ main =
 
 type alias Model =
     { todos : List Todo.Todo
+    , activeTodoId : Maybe Int
     , webDavConfig : Backend.WebDav.Config
     }
 
@@ -43,7 +46,7 @@ init flags =
             UserSettings.decode flags |> Result.withDefault { url = "", user = "", password = "" }
 
         model =
-            { todos = [], webDavConfig = config }
+            { todos = [], activeTodoId = Nothing, webDavConfig = config }
     in
     ( model
     , backend model
@@ -65,6 +68,7 @@ type Msg
     = UpdateTodos (Result String (List Todo.Todo))
     | AddTodo
     | WebDavConfigChanged Backend.WebDav.Config
+    | SetActiveTodo (Maybe Int)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -96,6 +100,9 @@ update msg model =
         WebDavConfigChanged u ->
             ( { model | webDavConfig = u }, UserSettings.setWebDavConfig u )
 
+        SetActiveTodo maybeId ->
+            ( { model | activeTodoId = maybeId }, Cmd.none )
+
 
 
 -- VIEW
@@ -107,7 +114,39 @@ view model =
         [ viewNavBar
         , viewConfig model.webDavConfig
         , button [ class "btn", class "btn-primary", onClick AddTodo ] [ text "add some Todo " ]
-        , div [] (model.todos |> List.map (\todo -> div [] [ text todo.title ]))
+        , Keyed.node "div"
+            [ class "accordion", class "m-3" ]
+            (model.todos
+                |> List.map
+                    (\todo ->
+                        lazy (viewTodo (Maybe.withDefault False (Maybe.map2 (==) (Just todo.id) model.activeTodoId))) todo
+                            |> Tuple.pair (String.fromInt todo.id)
+                    )
+            )
+        ]
+
+
+viewTodo : Bool -> Todo.Todo -> Html Msg
+viewTodo active todo =
+    div [ class "accordion-item" ]
+        [ h2 [ class "accordion-header" ]
+            [ button
+                [ onClick
+                    (SetActiveTodo
+                        (if active then
+                            Nothing
+
+                         else
+                            Just todo.id
+                        )
+                    )
+                , class "accordion-button"
+                , classList [ ( "collapsed", not active ) ]
+                ]
+                [ text todo.title ]
+            ]
+            ,div [class "accordion-collapse", class "collapse", classList [("show", active)]] 
+            [div [class "accordion-body"] [text "Hallo Test"]]
         ]
 
 
