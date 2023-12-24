@@ -173,9 +173,14 @@ getTodos cfg =
 addTodo : Config -> String -> Task.Task String (List Todo.Todo)
 addTodo cfg title =
     State.get
-        |> State.andThen (\todos -> State.put <| { id = 2, title = title } :: todos)
+        |> State.andThen (\todos -> State.put <| { id = nextId todos, title = title } :: todos)
         |> State.andThen (\_ -> State.get)
         |> modifyTodos cfg
+
+
+nextId : List Todo.Todo -> Int
+nextId todos =
+    1 + (todos |> List.map .id |> List.maximum |> Maybe.withDefault 0)
 
 
 decoder : Decoder Todo.Todo
