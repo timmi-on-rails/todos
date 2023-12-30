@@ -1,4 +1,4 @@
-module Monad.State exposing (State, andThen, get, map, put, run)
+module Monad.State exposing (State, state, andThen, get, map, put, run)
 
 
 type State error state value
