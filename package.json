@@ -5,7 +5,7 @@
   "source": "src/index.html",
   "scripts": {
     "elm": "elm",
-    "dev": "parcel",
+    "start": "parcel",
     "build": "parcel build"
   },
   "author": "Tom Scheler",
