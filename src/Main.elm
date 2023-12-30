@@ -35,6 +35,7 @@ main =
 type alias Model =
     { todos : List Todo.Todo
     , activeTodoId : Maybe Int
+    , showSettings : Bool
     , webDavConfig : Backend.WebDav.Config
     }
 
@@ -46,7 +47,7 @@ init flags =
             UserSettings.decode flags |> Result.withDefault { url = "", user = "", password = "" }
 
         model =
-            { todos = [], activeTodoId = Nothing, webDavConfig = config }
+            { todos = [], activeTodoId = Nothing, showSettings = False, webDavConfig = config }
     in
     ( model
     , backend model
@@ -69,6 +70,7 @@ type Msg
     | AddTodo
     | WebDavConfigChanged Backend.WebDav.Config
     | SetActiveTodo (Maybe Int)
+    | ToggleSettings
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -97,8 +99,22 @@ update msg model =
             in
             ( { model | todos = s }, Cmd.none )
 
+        ToggleSettings ->
+            ( { model | showSettings = not model.showSettings }
+            , if model.showSettings then
+                Cmd.batch
+                    [ UserSettings.setWebDavConfig model.webDavConfig
+                    , backend model
+                        |> Result.map (.getTodos >> Task.attempt UpdateTodos)
+                        |> Result.withDefault Cmd.none
+                    ]
+
+              else
+                Cmd.none
+            )
+
         WebDavConfigChanged u ->
-            ( { model | webDavConfig = u }, UserSettings.setWebDavConfig u )
+            ( { model | webDavConfig = u }, Cmd.none )
 
         SetActiveTodo maybeId ->
             ( { model | activeTodoId = maybeId }, Cmd.none )
@@ -111,19 +127,25 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ viewNavBar
-        , viewConfig model.webDavConfig
-        , button [ class "btn", class "btn-primary", onClick AddTodo ] [ text "add some Todo " ]
-        , Keyed.node "div"
-            [ class "accordion", class "m-3" ]
-            (model.todos
-                |> List.map
-                    (\todo ->
-                        lazy (viewTodo (Maybe.withDefault False (Maybe.map2 (==) (Just todo.id) model.activeTodoId))) todo
-                            |> Tuple.pair (String.fromInt todo.id)
+        (viewNavBar
+            :: (if model.showSettings then
+                    [ viewConfig model.webDavConfig ]
+
+                else
+                    []
+               )
+            ++ [ button [ class "btn", class "btn-primary", onClick AddTodo ] [ text "add some Todo " ]
+               , Keyed.node "div"
+                    [ class "accordion", class "m-3" ]
+                    (model.todos
+                        |> List.map
+                            (\todo ->
+                                lazy (viewTodo (Maybe.withDefault False (Maybe.map2 (==) (Just todo.id) model.activeTodoId))) todo
+                                    |> Tuple.pair (String.fromInt todo.id)
+                            )
                     )
-            )
-        ]
+               ]
+        )
 
 
 viewTodo : Bool -> Todo.Todo -> Html Msg
@@ -145,8 +167,8 @@ viewTodo active todo =
                 ]
                 [ text todo.title ]
             ]
-            ,div [class "accordion-collapse", class "collapse", classList [("show", active)]] 
-            [div [class "accordion-body"] [text "Hallo Test"]]
+        , div [ class "accordion-collapse", class "collapse", classList [ ( "show", active ) ] ]
+            [ div [ class "accordion-body" ] [ text "Hallo Test" ] ]
         ]
 
 
@@ -155,7 +177,9 @@ viewNavBar =
     node "nav"
         [ class "navbar", class "bg-body-tertiary" ]
         [ div [ class "container-fluid" ]
-            [ span [ class "navbar-brand", class "mb-0", class "h1" ] [ text "Todos" ] ]
+            [ span [ class "navbar-brand", class "mb-0", class "h1" ] [ text "Todos" ]
+            , button [ type_ "button" ] [ span [ class "navbar-toggler-icon", onClick ToggleSettings ] [] ]
+            ]
         ]
 
 
