@@ -34,10 +34,17 @@ main =
 
 type alias Model =
     { todos : List Todo.Todo
-    , activeTodoId : Maybe Int
+    , activeTodo : ActiveTodo
+    , addTodoText : String
     , showSettings : Bool
     , webDavConfig : Backend.WebDav.Config
     }
+
+
+type ActiveTodo
+    = Todo Int
+    | AddTodoItem
+    | Nothing
 
 
 init : E.Value -> ( Model, Cmd Msg )
@@ -47,7 +54,7 @@ init flags =
             UserSettings.decode flags |> Result.withDefault { url = "", user = "", password = "" }
 
         model =
-            { todos = [], activeTodoId = Nothing, showSettings = False, webDavConfig = config }
+            { todos = [], addTodoText = "", activeTodo = Nothing, showSettings = False, webDavConfig = config }
     in
     ( model
     , backend model
@@ -68,20 +75,24 @@ backend model =
 type Msg
     = UpdateTodos (Result String (List Todo.Todo))
     | AddTodo
+    | AddText String
     | WebDavConfigChanged Backend.WebDav.Config
-    | SetActiveTodo (Maybe Int)
+    | SetActiveTodo ActiveTodo
     | ToggleSettings
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        AddText s ->
+            ( { model | addTodoText = s }, Cmd.none )
+
         AddTodo ->
-            ( model
+            ( { model | addTodoText = "" }
             , backend model
                 |> Result.map
                     (\b ->
-                        b.addTodo "test"
+                        b.addTodo model.addTodoText
                             |> Task.attempt UpdateTodos
                     )
                 |> Result.withDefault Cmd.none
@@ -116,8 +127,8 @@ update msg model =
         WebDavConfigChanged u ->
             ( { model | webDavConfig = u }, Cmd.none )
 
-        SetActiveTodo maybeId ->
-            ( { model | activeTodoId = maybeId }, Cmd.none )
+        SetActiveTodo activeTodo ->
+            ( { model | activeTodo = activeTodo }, Cmd.none )
 
 
 
@@ -134,18 +145,49 @@ view model =
                 else
                     []
                )
-            ++ [ button [ class "btn", class "btn-primary", onClick AddTodo ] [ text "add some Todo " ]
-               , Keyed.node "div"
+            ++ [ Keyed.node "div"
                     [ class "accordion", class "m-3" ]
-                    (model.todos
-                        |> List.map
-                            (\todo ->
-                                lazy (viewTodo (Maybe.withDefault False (Maybe.map2 (==) (Just todo.id) model.activeTodoId))) todo
-                                    |> Tuple.pair (String.fromInt todo.id)
-                            )
+                    (( "x", viewAddTodo (model.activeTodo == AddTodoItem) model.addTodoText )
+                        :: (model.todos
+                                |> List.map
+                                    (\todo ->
+                                        lazy
+                                            (viewTodo (model.activeTodo == Todo todo.id))
+                                            todo
+                                            |> Tuple.pair (String.fromInt todo.id)
+                                    )
+                           )
                     )
                ]
         )
+
+
+viewAddTodo : Bool -> String -> Html Msg
+viewAddTodo active currentText =
+    div [ class "accordion-item" ]
+        [ h2 [ class "accordion-header" ]
+            [ button
+                [ onClick
+                    (SetActiveTodo
+                        (if active then
+                            Nothing
+
+                         else
+                            AddTodoItem
+                        )
+                    )
+                , class "accordion-button"
+                , classList [ ( "collapsed", not active ) ]
+                ]
+                [ text "Neu" ]
+            ]
+        , div [ class "accordion-collapse", class "collapse", classList [ ( "show", active ) ] ]
+            [ div [ class "accordion-body" ]
+                [ input [ class "form-control", class "mb-2", onInput AddText, value currentText ] []
+                , button [ class "btn", class "btn-primary", onClick AddTodo ] [ text "Hinzufügen" ]
+                ]
+            ]
+        ]
 
 
 viewTodo : Bool -> Todo.Todo -> Html Msg
@@ -159,7 +201,7 @@ viewTodo active todo =
                             Nothing
 
                          else
-                            Just todo.id
+                            Todo todo.id
                         )
                     )
                 , class "accordion-button"
